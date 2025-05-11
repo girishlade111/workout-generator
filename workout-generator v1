@@ -1,0 +1,253 @@
+import { useState, useEffect } from 'react'
+import { Button } from "/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "/components/ui/card"
+import { Label } from "/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "/components/ui/radio-group"
+import { Clock, User, Trash } from "lucide-react"
+
+// Sample exercise data
+const exerciseData = [
+  { id: 1, name: "Push-ups", difficulty: "beginner", equipment: "none", time: 5 },
+  { id: 2, name: "Squats", difficulty: "beginner", equipment: "none", time: 5 },
+  { id: 3, name: "Lunges", difficulty: "beginner", equipment: "none", time: 5 },
+  { id: 4, name: "Plank", difficulty: "intermediate", equipment: "none", time: 5 },
+  { id: 5, name: "Pull-ups", difficulty: "intermediate", equipment: "pull-up bar", time: 10 },
+  { id: 6, name: "Dips", difficulty: "intermediate", equipment: "parallel bars", time: 10 },
+  { id: 7, name: "Deadlifts", difficulty: "advanced", equipment: "barbell", time: 15 },
+  { id: 8, name: "Bent-over Rows", difficulty: "advanced", equipment: "barbell", time: 15 },
+  { id: 9, name: "Burpees", difficulty: "intermediate", equipment: "none", time: 10 },
+  { id: 10, name: "Jump Squats", difficulty: "intermediate", equipment: "none", time: 10 },
+]
+
+export default function WorkoutGenerator() {
+  const [availableTime, setAvailableTime] = useState(30)
+  const [equipment, setEquipment] = useState("none")
+  const [difficulty, setDifficulty] = useState("all")
+  const [workout, setWorkout] = useState([])
+  const [workoutHistory, setWorkoutHistory] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Load workout history from localStorage on component mount
+  useEffect(() => {
+    const savedHistory = localStorage.getItem('workoutHistory')
+    if (savedHistory) {
+      setWorkoutHistory(JSON.parse(savedHistory))
+    }
+  }, [])
+
+  // Save workout history to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('workoutHistory', JSON.stringify(workoutHistory))
+  }, [workoutHistory])
+
+  const generateWorkout = () => {
+    setIsLoading(true)
+    
+    // Filter exercises based on user selections
+    let filteredExercises = exerciseData.filter(exercise => {
+      const matchesEquipment = equipment === "none" ? exercise.equipment === "none" : exercise.equipment !== "none"
+      const matchesDifficulty = difficulty === "all" || exercise.difficulty === difficulty
+      return matchesEquipment && matchesDifficulty
+    })
+
+    // Randomly select exercises until we reach the available time
+    let totalTime = 0
+    const selectedExercises = []
+    
+    while (totalTime < availableTime && filteredExercises.length > 0) {
+      const randomIndex = Math.floor(Math.random() * filteredExercises.length)
+      const selectedExercise = filteredExercises[randomIndex]
+      
+      if (totalTime + selectedExercise.time <= availableTime) {
+        selectedExercises.push(selectedExercise)
+        totalTime += selectedExercise.time
+      }
+      
+      // Remove the selected exercise to avoid duplicates
+      filteredExercises = filteredExercises.filter(ex => ex.id !== selectedExercise.id)
+    }
+
+    setWorkout(selectedExercises)
+    setIsLoading(false)
+  }
+
+  const saveWorkout = () => {
+    if (workout.length === 0) return
+    
+    const newWorkout = {
+      id: Date.now(),
+      date: new Date().toLocaleDateString(),
+      exercises: [...workout],
+      totalTime: workout.reduce((sum, ex) => sum + ex.time, 0)
+    }
+    
+    setWorkoutHistory([newWorkout, ...workoutHistory])
+  }
+
+  const deleteWorkout = (workoutId) => {
+    setWorkoutHistory(workoutHistory.filter(w => w.id !== workoutId))
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold text-center mb-8">DIY Workout Generator</h1>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Workout Generator Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Generate Your Workout</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <Label htmlFor="time">Available Time (minutes)</Label>
+                <input
+                  id="time"
+                  type="range"
+                  min="10"
+                  max="60"
+                  step="5"
+                  value={availableTime}
+                  onChange={(e) => setAvailableTime(Number(e.target.value))}
+                  className="w-full mt-2"
+                />
+                <div className="flex justify-between text-sm text-gray-500 mt-1">
+                  <span>10 min</span>
+                  <span>{availableTime} min</span>
+                  <span>60 min</span>
+                </div>
+              </div>
+
+              <div>
+                <Label>Equipment Available</Label>
+                <RadioGroup 
+                  defaultValue="none" 
+                  className="mt-2"
+                  onValueChange={(value) => setEquipment(value)}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="none" id="none" />
+                    <Label htmlFor="none">No equipment</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="some" id="some" />
+                    <Label htmlFor="some">Some equipment</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div>
+                <Label>Difficulty Level</Label>
+                <RadioGroup 
+                  defaultValue="all" 
+                  className="mt-2"
+                  onValueChange={(value) => setDifficulty(value)}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="all" id="all" />
+                    <Label htmlFor="all">All levels</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="beginner" id="beginner" />
+                    <Label htmlFor="beginner">Beginner</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="intermediate" id="intermediate" />
+                    <Label htmlFor="intermediate">Intermediate</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="advanced" id="advanced" />
+                    <Label htmlFor="advanced">Advanced</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-center">
+              <Button onClick={generateWorkout} disabled={isLoading}>
+                {isLoading ? "Generating..." : "Generate Workout"}
+              </Button>
+            </CardFooter>
+          </Card>
+
+          {/* Generated Workout Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Workout Plan</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {workout.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="flex items-center text-sm text-gray-500">
+                    <Clock className="w-4 h-4 mr-1" />
+                    <span>Total time: {workout.reduce((sum, ex) => sum + ex.time, 0)} minutes</span>
+                  </div>
+                  <ul className="space-y-2">
+                    {workout.map((exercise, index) => (
+                      <li key={index} className="p-3 bg-gray-100 rounded-md">
+                        <div className="font-medium">{exercise.name}</div>
+                        <div className="flex justify-between text-sm text-gray-500">
+                          <span>Difficulty: {exercise.difficulty}</span>
+                          <span>{exercise.time} min</span>
+                        </div>
+                        {exercise.equipment !== "none" && (
+                          <div className="text-sm text-gray-500">Equipment: {exercise.equipment}</div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button 
+                    onClick={saveWorkout} 
+                    className="w-full mt-4"
+                    variant="secondary"
+                  >
+                    Save This Workout
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>Generate a workout to see it here!</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Workout History Section */}
+        {workoutHistory.length > 0 && (
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle>Your Workout History</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-4">
+                {workoutHistory.map((workout) => (
+                  <li key={workout.id} className="p-4 border rounded-md">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-medium">{workout.date}</div>
+                        <div className="flex items-center text-sm text-gray-500 mt-1">
+                          <Clock className="w-4 h-4 mr-1" />
+                          <span>{workout.totalTime} minutes</span>
+                          <User className="w-4 h-4 ml-3 mr-1" />
+                          <span>{workout.exercises.length} exercises</span>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => deleteWorkout(workout.id)}
+                      >
+                        <Trash className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  )
+}
